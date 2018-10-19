@@ -2,6 +2,8 @@
 
 namespace Drupal\janrain_capture\Controller;
 
+use Drupal\Core\Ajax\AjaxResponse;
+use Drupal\Core\Ajax\RedirectCommand;
 use Drupal\Core\Controller\ControllerBase;
 use Drupal\Core\Url;
 use Drupal\janrain_capture\JanrainCaptureApi;
@@ -79,6 +81,30 @@ EOF;
   }
 
   /**
+   * Cross site receiver page.
+   */
+  public function xdcomm() {
+
+    $output = <<<EOF
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" >
+    <head>
+        <title>Cross-Domain Receiver Page</title>
+    </head>
+    <body>
+        <script type="text/javascript">
+            var xdcommJs = (("https:" === document.location.protocol) ? "https://d1lqe9temigv1p.cloudfront.net/js/lib/xdcomm.js" : "http://cdn.janraincapture.com/js/lib/xdcomm.js");
+            document.write(decodeURIComponent("%3Cscript src='" + xdcommJs + "' type='text/javascript'%3E%3C/script%3E"));
+        </script>
+    </body>
+</html>
+EOF;
+
+    return new Response($output);
+  }
+
+  /**
    * Login or reset a password for a user using Janrain API.
    *
    * @param \Symfony\Component\HttpFoundation\Request $request
@@ -94,6 +120,8 @@ EOF;
     // browser, this controller must show the real HTML page instead of
     // just a URI.
     $response_class = Response::class;
+    $redirect_class = RedirectResponse::class;
+
     // Read (and remove) authorization code from the request.
     $authorization_code = $this->getAuthorizationCode($request);
     // Form destination URL here since the "$request" is modified above.
@@ -107,7 +135,7 @@ EOF;
       try {
         // The authentication can throw exceptions so their messages
         // will be exposed on the frontend.
-        $this->captureApi->authenticate($authorization_code, $request->getUri());
+        $redirect = $this->captureApi->authenticate($authorization_code, $request->getUri());
       }
       catch (\Throwable $e) {
         if ($e->getMessage() !== '') {
@@ -119,7 +147,7 @@ EOF;
       if ($request->get('url_type') === 'forgot') {
         // Now we're going to redirect a user to the previous location (front
         // page if missing).
-        $response_class = RedirectResponse::class;
+        $response_class = $redirect_class;
 
         // The authentication request ended with an error.
         if (isset($e)) {
@@ -142,6 +170,15 @@ EOF;
           $destination_url->setRouteParameter('changePassword', 'yes');
         }
       }
+      else if (isset($redirect)) {
+        $response_class = $redirect_class;
+        $destination_url = $redirect;
+      }
+    }
+
+    if ($request->headers->has('x-requested-with') && 'XMLHttpRequest' == $request->headers->get('x-requested-with')) {
+      $response_class = AjaxResponse::class;
+      return new $response_class(new RedirectCommand($destination_url->setAbsolute()->toString()));
     }
 
     return new $response_class($destination_url->setAbsolute()->toString());
