@@ -56,7 +56,7 @@ function janrain_capture_user_view(array &$build, UserInterface $user): void {
   // Only display user screen based on user view mode settings.
   $config = \Drupal::config('janrain_capture.drupal_settings');
   $view_modes = $config->get('capture.view_modes');
-  if (!in_array($build['#view_mode'], $view_modes, TRUE)) {
+  if (is_array($view_modes) && !in_array($build['#view_mode'], $view_modes, TRUE)) {
     return;
   }
 
