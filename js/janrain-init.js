@@ -100,11 +100,13 @@ window.janrain = window.janrain || {};
 
   window.CAPTURE = {
     logout: function() {
-      console.log('janrain logout');
       localStorage.removeItem('janrainLastAuthMethod');
       localStorage.removeItem('janrainLastAuthMethod_Expires');
       localStorage.removeItem('janrainCaptureProfileData');
       localStorage.removeItem('janrainCaptureToken');
+      JANRAIN.SSO.CAPTURE.logout({
+        sso_server: "https://" + drupalSettings.janrain.capture.federate_server,
+      });
     }
   };
 
@@ -115,9 +117,6 @@ window.janrain = window.janrain || {};
 Drupal.behaviors.janrainLogout = {
   attach: function (context, settings) {
     if (jQuery('form.logout-confirm', context).length) {
-      console.log('logout form detected');
-      console.log(jQuery('input.success', context));
-
       jQuery('input.success', context).once('logout-confirm').click(CAPTURE.logout);
     }
   }
